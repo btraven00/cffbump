@@ -17,14 +17,14 @@ DEFAULT_INCLUDE_SOURCES = ["md", "git", "crossref"]
 
 
 def get_last_tag_info():
-    """Return (version, commit) from the last known git tag, or ('0.0.0', None)."""
+    """Return (version, commit, date) from the last known git tag, or ('0.0.0', None, None)."""
     tag_result = subprocess.run(
         ["git", "describe", "--tags", "--abbrev=0"],
         capture_output=True,
         text=True,
     )
     if tag_result.returncode != 0 or not tag_result.stdout.strip():
-        return "0.0.0", None
+        return "0.0.0", None, None
     tag = tag_result.stdout.strip()
     commit_result = subprocess.run(
         ["git", "rev-list", "-n", "1", tag],
@@ -32,7 +32,13 @@ def get_last_tag_info():
         text=True,
     )
     commit = commit_result.stdout.strip() if commit_result.returncode == 0 else None
-    return tag.lstrip("v"), commit
+    date_result = subprocess.run(
+        ["git", "log", "-1", "--format=%as", tag],
+        capture_output=True,
+        text=True,
+    )
+    date = date_result.stdout.strip() if date_result.returncode == 0 and date_result.stdout.strip() else None
+    return tag.lstrip("v"), commit, date
 
 
 def load_config():
@@ -341,13 +347,16 @@ def main():
 
     print(f"Total authors in CITATION.cff: {len(final_authors)}")
 
-    # 5. Set version and commit from last published tag
-    current_version, tag_commit = get_last_tag_info()
+    # 5. Set version, commit, and date-released from last published tag
+    current_version, tag_commit, tag_date = get_last_tag_info()
     cff_data["version"] = current_version
     print(f"Set version to {cff_data['version']}")
     if tag_commit:
         cff_data["commit"] = tag_commit
         print(f"Set commit to {tag_commit}")
+    if tag_date:
+        cff_data["date-released"] = tag_date
+        print(f"Set date-released to {tag_date}")
 
     # 6. Save (preserving YAML structure)
     with open(CFF_PATH, "w") as f:
