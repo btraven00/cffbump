@@ -42,17 +42,43 @@ Or configure via workflow inputs:
     doi: '10.1371/journal.pone.0021373'
 ```
 
-### 3. Set Trigger
+### 3. Add Workflow
 
-Edit `.github/workflows/cffbump.yaml`:
+Create `.github/workflows/cffbump.yaml`:
 
 ```yaml
-# On releases
+name: Update CITATION.cff
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-cff:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: btraven00/cffbump@v1
+        with:
+          git-min-commits: '2'
+          include-sources: 'md,git,crossref'
+          doi: '10.1371/journal.pone.0021373'  # optional
+```
+
+The action will commit and push the updated `CITATION.cff` automatically. The `permissions: contents: write` is required for the push to succeed.
+
+You can also trigger on releases or tags instead of every push:
+
+```yaml
 on:
   release:
     types: [published]
-
-# On version tags
+# or
 on:
   push:
     tags: ['v*']

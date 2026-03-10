@@ -307,46 +307,56 @@ def main():
             "version": "0.0.0",
         }
 
-    # 2. Extract authors from enabled sources
-    all_new_authors = []
-    existing_authors = cff_data.get("authors", [])
+    # 2. Determine routing: if preferred-citation is an article, crossref authors
+    #    go there; git/md authors go to the top-level software authors block.
+    preferred = cff_data.get("preferred-citation", {})
+    has_article_preferred = preferred.get("type") == "article"
+
+    software_new_authors = []  # for top-level authors
+    article_new_authors = []   # for preferred-citation.authors
 
     if "md" in include_sources:
         md_authors = get_authors_from_md()
-        all_new_authors.append(md_authors)
+        software_new_authors.append(md_authors)
         print(f"Extracted {len(md_authors)} authors from AUTHORS.md")
 
     if "git" in include_sources:
         git_min_commits = config.get("git_min_commits", DEFAULT_GIT_MIN_COMMITS)
         git_authors = get_authors_from_git(min_commits=git_min_commits)
-        all_new_authors.append(git_authors)
+        software_new_authors.append(git_authors)
         print(
             f"Extracted {len(git_authors)} authors from git history (min {git_min_commits} commits)"
         )
 
     if "crossref" in include_sources:
         # Try to get DOI from preferred-citation, then config, then identifiers
-        preferred = cff_data.get("preferred-citation", {})
         doi = preferred.get("doi") or config.get("doi")
         if not doi and cff_data.get("identifiers"):
             doi = cff_data.get("identifiers", [{}])[0].get("value")
         if doi:
             crossref_authors = get_authors_from_crossref(doi)
-            all_new_authors.append(crossref_authors)
+            if has_article_preferred:
+                article_new_authors.append(crossref_authors)
+            else:
+                software_new_authors.append(crossref_authors)
             print(
                 f"Extracted {len(crossref_authors)} authors from Crossref (DOI: {doi})"
             )
         else:
             print("Warning: No DOI found for Crossref lookup")
 
-    # 3. Merge all authors with existing ones
-    merged_authors = merge_authors(all_new_authors)
-
-    # 4. Combine with existing authors (preserve hand-edited entries)
-    final_authors = merge_authors([existing_authors, merged_authors])
+    # 3. Update top-level authors (software contributors)
+    existing_authors = cff_data.get("authors", [])
+    final_authors = merge_authors([existing_authors, merge_authors(software_new_authors)])
     cff_data["authors"] = final_authors
-
     print(f"Total authors in CITATION.cff: {len(final_authors)}")
+
+    # 4. Update preferred-citation authors if it's an article
+    if has_article_preferred and article_new_authors:
+        existing_article_authors = preferred.get("authors", [])
+        final_article_authors = merge_authors([existing_article_authors, merge_authors(article_new_authors)])
+        cff_data["preferred-citation"]["authors"] = final_article_authors
+        print(f"Total authors in preferred-citation: {len(final_article_authors)}")
 
     # 5. Set version, commit, and date-released from last published tag
     current_version, tag_commit, tag_date = get_last_tag_info()

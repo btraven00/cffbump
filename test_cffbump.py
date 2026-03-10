@@ -7,6 +7,7 @@ import sys
 import tempfile
 import yaml
 from pathlib import Path
+from unittest.mock import patch
 
 # Add the scripts directory to the path
 scripts_dir = os.path.join(os.path.dirname(__file__), ".github", "scripts")
@@ -227,6 +228,141 @@ def test_merge_additional_metadata():
     print("PASS: test_merge_additional_metadata passed")
 
 
+GIT_AUTHORS = [{"given-names": "Dev", "family-names": "One"}]
+CROSSREF_AUTHORS = [{"given-names": "Paper", "family-names": "Author"}]
+
+
+def _run_main_with_cff(cff_data, env=None):
+    """Helper: write cff_data to a temp file, run main(), return loaded result."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cff_path = os.path.join(tmpdir, "CITATION.cff")
+        with open(cff_path, "w") as f:
+            yaml.dump(cff_data, f)
+
+        orig_cff = cffbump.CFF_PATH
+        orig_authors = cffbump.AUTHORS_PATH
+        orig_config = cffbump.CONFIG_PATH
+        cffbump.CFF_PATH = cff_path
+        cffbump.AUTHORS_PATH = os.path.join(tmpdir, "AUTHORS.md")  # non-existent
+        cffbump.CONFIG_PATH = os.path.join(tmpdir, "cffbump.config.yaml")
+
+        mock_env = {
+            "INPUT_GIT_MIN_COMMITS": "1",
+            "INPUT_INCLUDE_SOURCES": "git,crossref",
+            "INPUT_DOI": "10.1234/test",
+        }
+        if env:
+            mock_env.update(env)
+
+        try:
+            with patch.dict(os.environ, mock_env, clear=True), \
+                 patch("cffbump.get_authors_from_git", return_value=GIT_AUTHORS), \
+                 patch("cffbump.get_authors_from_crossref", return_value=CROSSREF_AUTHORS), \
+                 patch("cffbump.get_last_tag_info", return_value=("1.0.0", None, None)):
+                cffbump.main()
+
+            with open(cff_path) as f:
+                return yaml.safe_load(f)
+        finally:
+            cffbump.CFF_PATH = orig_cff
+            cffbump.AUTHORS_PATH = orig_authors
+            cffbump.CONFIG_PATH = orig_config
+
+
+def test_main_preferred_citation_article_routes_crossref_to_article():
+    """When preferred-citation is type article, crossref authors go into
+    preferred-citation.authors and git authors go to top-level authors."""
+    cff_data = {
+        "cff-version": "1.2.0",
+        "message": "Cite me!",
+        "type": "software",
+        "authors": [],
+        "preferred-citation": {
+            "type": "article",
+            "title": "My Paper",
+            "doi": "10.1234/test",
+            "authors": [],
+        },
+    }
+
+    result = _run_main_with_cff(cff_data)
+
+    top_families = {a["family-names"] for a in result["authors"]}
+    article_families = {a["family-names"] for a in result["preferred-citation"]["authors"]}
+
+    assert "One" in top_families, "git author should be in top-level authors"
+    assert "Author" not in top_families, "crossref author should NOT be in top-level authors"
+    assert "Author" in article_families, "crossref author should be in preferred-citation.authors"
+    assert "One" not in article_families, "git author should NOT be in preferred-citation.authors"
+    print("PASS: test_main_preferred_citation_article_routes_crossref_to_article")
+
+
+def test_main_no_preferred_citation_all_authors_in_top_level():
+    """Without preferred-citation, all sources go into top-level authors."""
+    cff_data = {
+        "cff-version": "1.2.0",
+        "message": "Cite me!",
+        "type": "software",
+        "authors": [],
+    }
+
+    result = _run_main_with_cff(cff_data)
+
+    top_families = {a["family-names"] for a in result["authors"]}
+    assert "One" in top_families, "git author should be in top-level authors"
+    assert "Author" in top_families, "crossref author should be in top-level authors"
+    assert "preferred-citation" not in result
+    print("PASS: test_main_no_preferred_citation_all_authors_in_top_level")
+
+
+def test_main_non_article_preferred_citation_all_authors_in_top_level():
+    """When preferred-citation type is not article, all authors go to top-level."""
+    cff_data = {
+        "cff-version": "1.2.0",
+        "message": "Cite me!",
+        "type": "software",
+        "authors": [],
+        "preferred-citation": {
+            "type": "book",
+            "title": "My Book",
+            "authors": [],
+        },
+    }
+
+    result = _run_main_with_cff(cff_data)
+
+    top_families = {a["family-names"] for a in result["authors"]}
+    assert "One" in top_families
+    assert "Author" in top_families
+    # book preferred-citation authors should remain untouched (empty)
+    assert result["preferred-citation"]["authors"] == []
+    print("PASS: test_main_non_article_preferred_citation_all_authors_in_top_level")
+
+
+def test_main_preferred_citation_article_preserves_existing_article_authors():
+    """Existing authors in preferred-citation.authors are preserved and merged."""
+    existing_article_author = {"given-names": "Existing", "family-names": "Scholar"}
+    cff_data = {
+        "cff-version": "1.2.0",
+        "message": "Cite me!",
+        "type": "software",
+        "authors": [],
+        "preferred-citation": {
+            "type": "article",
+            "title": "My Paper",
+            "doi": "10.1234/test",
+            "authors": [existing_article_author],
+        },
+    }
+
+    result = _run_main_with_cff(cff_data)
+
+    article_families = {a["family-names"] for a in result["preferred-citation"]["authors"]}
+    assert "Scholar" in article_families, "existing article author should be preserved"
+    assert "Author" in article_families, "new crossref author should be added"
+    print("PASS: test_main_preferred_citation_article_preserves_existing_article_authors")
+
+
 if __name__ == "__main__":
     print("Running unit tests for cffbump...")
     test_get_authors_from_md()
@@ -237,4 +373,8 @@ if __name__ == "__main__":
     test_merge_additional_metadata()
     test_load_config()
     test_get_authors_from_git()
+    test_main_preferred_citation_article_routes_crossref_to_article()
+    test_main_no_preferred_citation_all_authors_in_top_level()
+    test_main_non_article_preferred_citation_all_authors_in_top_level()
+    test_main_preferred_citation_article_preserves_existing_article_authors()
     print("\nAll tests passed! ✓")
