@@ -1,0 +1,54 @@
+name: Test CFFBump
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: pytest test_cffbump.py -v
+
+  integration-tests:
+    name: Integration Tests - ${{ matrix.fixture }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        fixture: [basic-repo, crossref-repo, minimal-repo]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Setup fixture from bundle
+        working-directory: test-fixtures
+        run: bash setup.sh ${{ matrix.fixture }}
+
+      - name: Run CFFBump on ${{ matrix.fixture }}
+        working-directory: test-fixtures/${{ matrix.fixture }}
+        run: python ../../.github/scripts/cffbump.py
+
+      - name: Verify ${{ matrix.fixture }}
+        run: python test-fixtures/verify.py ${{ matrix.fixture }}

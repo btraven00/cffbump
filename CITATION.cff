@@ -1,10 +1,31 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: If you use this software, please cite it as below.
 authors:
-  - family-names: Johnson
-    given-names: Alice
-    email: alice@example.com
-  - family-names: Garcia
-    given-names: Elena
-title: "Example Project"
-version: 1.0.0
+- family-names: Johnson
+  given-names: Alice
+  email: alice@example.com
+- family-names: Garcia
+  given-names: Elena
+- given-names: Bob
+  family-names: Smith
+- given-names: Carol
+  family-names: Williams
+  email: carol@example.com
+- given-names: David
+  family-names: Lee
+- given-names: Dustin L.
+  family-names: Higashi
+- given-names: Nicolas
+  family-names: Biais
+- given-names: Nathan J.
+  family-names: Weyand
+- given-names: Al
+  family-names: Agellon
+- given-names: Jennifer L.
+  family-names: Sisko
+- given-names: Lewis M.
+  family-names: Brown
+- given-names: Magdalene
+  family-names: So
+title: Example Project
+version: 1.0.4

@@ -1,0 +1,25 @@
+# CFFBump Configuration
+# This file controls how cffbump extracts and merges authors from multiple sources
+
+# Which author sources to include (md, git, crossref)
+# - md: Extract authors from AUTHORS.md file
+# - git: Extract authors from git commit history
+# - crossref: Extract authors from published paper metadata (requires DOI)
+include_sources:
+  - md
+  - git
+  - crossref
+
+# Minimum number of commits required for an author to be included from git history
+# Set to 1 to include all committers, or higher to filter out occasional contributors
+git_min_commits: 2
+
+# DOI of the published paper (optional if already in CITATION.cff)
+# If specified here, it overrides the DOI in CITATION.cff
+# Example: "10.1234/example.doi"
+doi: "10.1371/journal.pone.0021373"
+
+# Optional: Filter git authors by date range
+# Examples: "since=2023-01-01", "until=2024-01-01", "since=2023-01-01&until=2024-01-01"
+# Leave as null to include all commits
+date_filter: null

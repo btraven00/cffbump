@@ -1,0 +1,62 @@
+name: 'CFFBump'
+description: 'Automatically update CITATION.cff with authors from AUTHORS.md, git history, and Crossref API'
+author: 'CFFBump Contributors'
+
+inputs:
+  git-min-commits:
+    description: 'Minimum number of commits required to include author from git history'
+    required: false
+    default: '2'
+  
+  include-sources:
+    description: 'Comma-separated list of sources to include: md, git, crossref'
+    required: false
+    default: 'md,git,crossref'
+  
+  doi:
+    description: 'Digital Object Identifier (DOI) for Crossref API lookups (optional)'
+    required: false
+    default: ''
+  
+  date-filter:
+    description: 'Optional date filter for git history (format: YYYY-MM-DD or YYYY-MM-DD:YYYY-MM-DD)'
+    required: false
+    default: ''
+
+outputs:
+  # Note: Currently no outputs, but can be extended in future versions
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Checkout code'
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 'Set up Python'
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: 'Install dependencies'
+      run: pip install -r requirements.txt
+      shell: bash
+      working-directory: ${{ github.action_path }}
+
+    - name: 'Run CFFBump'
+      run: python .github/scripts/cffbump.py
+      shell: bash
+      env:
+        INPUT_GIT_MIN_COMMITS: ${{ inputs.git-min-commits }}
+        INPUT_INCLUDE_SOURCES: ${{ inputs.include-sources }}
+        INPUT_DOI: ${{ inputs.doi }}
+        INPUT_DATE_FILTER: ${{ inputs.date-filter }}
+
+    - name: 'Validate CITATION.cff'
+      run: cffconvert --validate
+      shell: bash
+
+branding:
+  icon: 'file-text'
+  color: 'blue'

@@ -1,0 +1,7 @@
+__pycache__
+*.swp
+
+# Test fixture dirs are regenerated from bundles at test time
+test-fixtures/basic-repo/
+test-fixtures/crossref-repo/
+test-fixtures/minimal-repo/

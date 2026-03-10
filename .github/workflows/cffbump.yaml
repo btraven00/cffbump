@@ -1,0 +1,42 @@
+name: Sync and Validate CITATION.cff
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-citation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update CITATION.cff
+        uses: ./
+        with:
+          # Optional: Minimum commits to include author from git history
+          # Default: 2
+          git-min-commits: '2'
+          
+          # Optional: Comma-separated sources (md, git, crossref)
+          # Default: md,git,crossref
+          include-sources: 'md,git,crossref'
+          
+          # Optional: DOI for Crossref API lookups
+          # Leave empty to skip Crossref
+          doi: ''
+          
+          # Optional: Filter git history by date
+          # Format: YYYY-MM-DD or YYYY-MM-DD:YYYY-MM-DD
+          # Leave empty to include all commits
+          date-filter: ''
+
+      - name: Commit and Push
+        run: |
+          git config --local user.email "cffbump@github.com"
+          git config --local user.name "cffbump github action"
+          git add CITATION.cff
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: bump version and sync authors in CITATION.cff"
+          git push
+
