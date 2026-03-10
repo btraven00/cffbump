@@ -42,7 +42,7 @@ runs:
       working-directory: ${{ github.action_path }}
 
     - name: 'Run CFFBump'
-      run: python .github/scripts/cffbump.py
+      run: python ${{ github.action_path }}/.github/scripts/cffbump.py
       shell: bash
       env:
         INPUT_GIT_MIN_COMMITS: ${{ inputs.git-min-commits }}
