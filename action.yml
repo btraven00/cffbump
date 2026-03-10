@@ -23,9 +23,6 @@ inputs:
     required: false
     default: ''
 
-outputs:
-  # Note: Currently no outputs, but can be extended in future versions
-
 runs:
   using: 'composite'
   steps:
