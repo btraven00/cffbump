@@ -325,8 +325,9 @@ def main():
         )
 
     if "crossref" in include_sources:
-        # Try to get DOI from config or from existing CFF
-        doi = config.get("doi")
+        # Try to get DOI from preferred-citation, then config, then identifiers
+        preferred = cff_data.get("preferred-citation", {})
+        doi = preferred.get("doi") or config.get("doi")
         if not doi and cff_data.get("identifiers"):
             doi = cff_data.get("identifiers", [{}])[0].get("value")
         if doi:
