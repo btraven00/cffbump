@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Johnson
+    given-names: Alice
+    email: alice@example.com
+  - family-names: Garcia
+    given-names: Elena
+title: "Example Project"
+version: 1.0.0
